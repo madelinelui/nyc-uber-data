@@ -1,0 +1,220 @@
+---
+title: "NYC Uber data analysis"
+author: "Madeline Lui"
+date: '2022-07-01'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r setup}
+library(tidyverse)
+library(ggplot2)
+library(ggthemes)
+library(lubridate)
+library(dplyr)
+library(tidyr)
+library(DT)
+library(scales)
+```
+
+```{r DF}
+#create colour vectors
+colours = c("#CC1011", "#665555", "05a399", "#cfcaca", "#f5e840", "#0683c9", "#e075b0")
+
+apr_dat <- read.csv("uber-raw-data-apr14.csv")
+may_dat <- read.csv("uber-raw-data-may14.csv")
+jun_dat <- read.csv("uber-raw-data-jun14.csv")
+jul_dat <- read.csv("uber-raw-data-jul14.csv")
+aug_dat <- read.csv("uber-raw-data-aug14.csv")
+sep_dat <- read.csv("uber-raw-data-sep14.csv")
+
+dat_2014 <- rbind(apr_dat,may_dat,jun_dat,jul_dat,aug_dat,sep_dat)
+
+#date-time formatting
+dat_2014$Date.Time <- as.POSIXct(dat_2014$Date.Time, format = "%m/%d/%Y %H:%M:%S")
+
+#create new variable for Time
+dat_2014$Time <- format(as.POSIXct(dat_2014$Date.Time, format= "%m/%d/%Y %H:%M:%S"), format="%H:%M:%S")
+
+#transform factors of time stored as vectors into objects
+dat_2014$Date.Time <- ymd_hms(dat_2014$Date.Time)
+
+dat_2014$day <- factor(day(dat_2014$Date.Time))
+dat_2014$month <- factor(month(dat_2014
+                               $Date.Time, label=TRUE))
+dat_2014$year <- factor(year(dat_2014$Date.Time))
+dat_2014$dayofweek <- factor(wday(dat_2014$Date.Time, label=TRUE))
+
+dat_2014$hour <- factor(hour(hms(dat_2014$Time)))
+dat_2014$minute <- factor(minute(hms(dat_2014$Time)))
+dat_2014$second <- factor(second(hms(dat_2014$Time)))
+```
+
+```{r plot trips}
+#number of trips by hour per day
+hour_dat <- dat_2014 %>%
+  group_by(hour) %>%
+    dplyr::summarize(Total=n())
+datatable(hour_dat)
+
+hour_dat %>%
+  ggplot(aes(hour, Total))+
+  geom_bar(stat = "identity", fill = "steelblue", color = "red") +
+  ggtitle("Trips Every Hour")+
+  theme(legend.position="none")+
+  scale_y_continuous(labels=comma)
+
+#trips by hour per month
+month_hour <- dat_2014 %>%
+  group_by(month, hour) %>%
+  dplyr::summarise(Total = n())
+
+month_hour %>%
+  ggplot(aes(hour, Total, fill=month))+
+  geom_bar(stat="identity")+
+  labs(title="Trips by Hour and Month")+
+  scale_y_continuous(labels=comma)
+
+#plot data based on every day of the month
+##trips every day
+day_group <- dat_2014 %>%
+  group_by(day) %>%
+    dplyr::summarise(Total=n())
+datatable(day_group)
+
+day_group %>%
+  ggplot(aes(day, Total))+
+  geom_bar(stat="identity", fill="steelblue")+
+  labs(title="Trips Every Day")+
+  theme(legend.position="none")+
+  scale_y_continuous(labels=comma)
+
+##trips every day by month
+day_month_group <- dat_2014 %>%
+  group_by(month, dayofweek) %>%
+    dplyr::summarise(Total=n())
+
+day_month_group %>%
+  ggplot(aes(month, Total, fill=dayofweek))+
+  geom_bar(position="dodge", stat="identity")+
+  ggtitle("Trips by Day and Month")+
+  scale_y_continuous(labels=comma)+
+  scale_fill_manual(values=colours)
+
+##number of trips by months in a year
+month_group <- dat_2014 %>%
+  group_by(month) %>%
+    dplyr::summarise(Total=n())
+datatable(month_group)
+
+month_group %>%
+  ggplot(aes(month, Total, fill=month))+
+  geom_bar(stat="identity")+
+  ggtitle("Trips by Month")+
+  theme(legend.position = "none")+
+  scale_y_continuous(labels=comma)+
+  scale_fill_manual(values=colours)
+
+##trips by bases
+dat_2014 %>%
+  ggplot(aes(Base))+
+  geom_bar(fill="darkgreen")+
+  scale_y_continuous(labels=comma)+
+  ggtitle("Trips by Bases")
+
+dat_2014 %>%
+  ggplot(aes(Base, fill=month))+
+  geom_bar(position="dodge")+
+  scale_y_continuous(labels=comma)+
+  labs(title="Trips by Bases per Month")+
+  scale_fill_manual(values=colours)
+
+dat_2014 %>%
+  ggplot(aes(Base, fill=dayofweek))+
+  geom_bar(position="dodge")+
+  scale_y_continuous(labels=comma)+
+  ggtitle("Trips by Bases and Day of the Week")+
+  scale_fill_manual(values=colours)
+```
+```{r heatmap vis}
+#Heat Map by hour and day
+day_hour <- dat_2014 %>%
+  group_by(day, hour) %>%
+    dplyr::summarise(Total=n())
+datatable(day_hour)
+
+day_hour %>%
+  ggplot(aes(day, hour, fill=Total))+
+  geom_tile(color="white")+
+  ggtitle("Heat Map by Hour and Day")
+
+#HM by month and day
+month_day <- dat_2014 %>%
+  group_by(month, day) %>%
+    dplyr::summarise(Total=n())
+
+month_day %>%
+  ggplot(aes(day, month, fill=Total))+
+  geom_tile(color="white")+
+  ggtitle("Heat Map by Month and Day")
+
+#HM by day of week per month
+month_dayofweek <- dat_2014 %>%
+  group_by(month, dayofweek) %>%
+  dplyr::summarise(Total=n())
+
+month_dayofweek %>%
+  ggplot(aes(dayofweek, month, fill=Total))+
+  geom_tile(color="white")+
+  ggtitle("Heat Map by Day of the Week and Month")
+
+#HM by bases and month
+month_base <- dat_2014 %>%
+  group_by(month, Base) %>%
+  dplyr::summarise(Total=n())
+
+month_base %>%
+  ggplot(aes(Base, month, fill=Total))+
+  geom_tile(color="white")+
+  ggtitle("Heat Map by Bases and Month")
+
+#HM base and day of week
+base_dayofweek <- dat_2014 %>%
+  group_by(Base, dayofweek) %>%
+  dplyr::summarise(Total=n())
+
+base_dayofweek %>%
+  ggplot(aes(Base, dayofweek, fill=Total))+
+  geom_tile(color="white")+
+  ggtitle("Heat Map by Day of the Week and Bases")
+```
+```{r map vis of rides}
+min_lat <- 40.5774
+max_lat <- 40.9176
+min_long <- -74.15
+max_long <- -73.7004
+
+dat_2014 %>%
+  ggplot(aes(x=Lon, y=Lat))+
+  geom_point(size=1, color="purple")+
+  scale_x_continuous(limits=c(min_long, max_long))+
+  scale_y_continuous(limits=c(min_lat, max_lat))+
+  theme_map()+
+  ggtitle("NYC MAP BASED ON UBER RIDES DURING 2014 (APR-SEPT)")
+
+##by base
+ggplot(dat_2014, aes(x=Lon, y=Lat, color = Base)) +
+  geom_point(size=1) +
+     scale_x_continuous(limits=c(min_long, max_long)) +
+      scale_y_continuous(limits=c(min_lat, max_lat)) +
+       theme_map() +
+          ggtitle("NYC MAP BASED ON UBER RIDES DURING 2014 (APR-SEP) by BASE")
+```
+
+
+
+
+
