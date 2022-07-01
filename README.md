@@ -1,2 +1,1 @@
-# the data used in this project was retrieved from kaggle
-### purpose of project: data vis and wrangling revision
+#### date-time formatting; data visualisation in bar, tile, geomaps.
